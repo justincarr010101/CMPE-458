@@ -1,9 +1,10 @@
 # cmpe458
 
-Phase 1: Scanner 
+Course Project
+- Understand and modify a small but real programming
+language compiler (“PT Pascal”) to implement a new
+language
+- All programming done in Pascal using the PT Pascal
+compiler itself
+- Using the S/SL compiler construction tools (like IBM)
 
-Phase 2: Parser  
-
-Phase 3: Semantic Analyzer 
-    
-Phase 4: Code Generator
