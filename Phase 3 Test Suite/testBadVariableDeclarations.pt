@@ -1,0 +1,11 @@
+using output
+% Declaration Test Cases
+
+% Setting variables with incorrect types
+var x : integer
+var y : string
+var z : boolean
+
+x = false
+y = 100
+z = "string"

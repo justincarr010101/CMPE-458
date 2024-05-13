@@ -1,0 +1,9 @@
+Purpose of test case:
+To show the analyzer properly handles usage of the index operator
+
+Expected Output:
+- the index operator takes two operators, the string we are using and the string we want to find within
+- when using index we should see the proper tcodes for recognizing both strings and then .tIndex and .tAssignInteger
+
+Output:
+- The output follows exactly as we want it to. The index operators are recognized as well as the strings being used. The proper tCodes are outputted in the correct order.

@@ -1,0 +1,661 @@
+%  PT Parser Version 5.1
+%
+% Date:  30 Jun 1980
+%        (Revised v5.1 - 8 Feb 2021)
+%
+% Author:  Alan Rosselet
+%
+% Abstract
+%     This module parses the syntax token stream emitted by the scanner
+%     and emits a postfix stream of tokens to the semantic analyzer
+%     module.  The parser detects and repairs syntax errors so that the
+%     token stream emitted to the semantic analyzer is syntactically
+%     legal (except for the special case of declaration phase errors - 
+%     see the comment in the Block routine below).
+
+Input :
+        % Keywords must be first both here and in stdIdentifiers,
+        % and they must appear in the exact same order
+
+        % MODIFICATION MADE
+        % Modified parser input token list to match scanner/screener output
+
+        pDiv                    'div'
+        firstKeywordToken = pDiv
+        pMod                    'mod'
+        pOr                     'or'
+        pAnd                    'and'
+        pThen                   'then'
+        pElse                   'else'
+        pOf                     'of'
+        pEnd                    'end'
+        pDo                     'do'
+        pArray                  'array'
+        pFile                   'file'
+        pVar                    'var'
+        pType                   'type'
+        pIf                     'if'
+        pCase                   'case'
+        pWhile                  'while'
+        pUsing                  'using'
+        pVal                    'val'       
+        pDef                    'def'
+        pBreak                  'break'
+        pWhen                   'when'
+        pModule                 'module'
+        pUnless                 'unless'
+        pElsif                  'elsif'
+        lastKeywordToken = pElsif
+
+        % Scanner tokens -
+        %   These are the tokens actually recognized by the Scanner itself.
+
+        % Compound tokens - 
+        %   These will be sent to the parser with a value or index.
+        pIdentifier 
+        firstCompoundInputToken = pIdentifier
+        pInteger
+        pStringLiteral
+        lastCompoundInputToken = pStringLiteral
+
+        % Non-compound tokens - 
+        %   These tokens simply represent themselves.
+        pNewLine
+        pEndFile
+        pPlus                   '+'
+        pMinus                  '-'
+        pStar                   '*'
+        pDoubleEquals           '=='
+        pDot                    '.'
+        pComma                  ','
+        pSemicolon              ';'
+        pColon                  ':'
+        pEquals                 '='
+        pNotEqual               '!='
+        pLess                   '<'
+        pLessEqual              '<='
+        pGreaterEqual           '>='
+        pGreater                '>'
+        pLeftParen              '('
+        pRightParen             ')'
+        pLeftBracket            '['
+        pRightBracket           ']'
+        pDotDot                 '..'
+        pPercent                '%'
+        pHash                   '#'
+        pExclamation            '!'
+        pQuestion               '?'
+        pDollar                 '$'
+        lastSyntaxToken = pDollar;
+
+Output :
+
+        % MODIFICATION MADE
+        % Updated parser output tokens to match Quby spec
+        % Also removed some tokens such as sRepeatStmt that are uneeded
+
+        sIdentifier 
+        firstSemanticToken = sIdentifier
+        firstCompoundSemanticToken = sIdentifier
+        sInteger
+        sStringLiteral
+        lastCompoundSemanticToken = sStringLiteral
+
+        sProgram
+        sParmBegin
+        sParmEnd
+        sConst
+        sType
+        sVar
+        sProcedure
+        sBegin
+        sEnd
+        sNegate
+        sArray
+        sFile
+        sRange
+        sCaseStmt
+        sCaseEnd
+        sLabelEnd
+        sExpnEnd
+        sNullStmt
+        sAssignmentStmt
+        sSubscript
+        sCallStmt
+        sFieldWidth
+        sIfStmt
+        sThen
+        sElse
+        sWhileStmt
+        sEq
+        sNE
+        sLT
+        sLE
+        sGT
+        sGE
+        sAdd
+        sSubtract
+        sMultiply
+        sDivide
+        sModulus
+        sInfixOr
+        sOr
+        sInfixAnd
+        sAnd
+        sNot
+        sNewLine
+        sEndOfFile
+        sPublic
+        sModule
+        sDo
+        sBreakif
+        sSubstring
+        sLength
+        sIndex
+        lastSemanticToken = sIndex;
+
+
+rules
+
+% MODIFICATION MADE
+% Changed program rule to consume 'using' instead of 'program'
+% Deleted first .pIdentifier output because there is no program name in Quby
+
+Program :
+        'using'  .sProgram
+        % program name
+        % pIdentifier
+        % program parameters
+        % '('
+        {
+            pIdentifier  .sIdentifier
+            [
+                | ',':
+                | *:
+                    >
+            ]
+        }
+        % ')'
+        .sParmEnd
+        @Block;
+
+% MODIFICATION MADE
+% Block rule outputs .sBegin, calls main DeclarationsAndStatements function, and emits .sEnd
+
+Block :
+    .sBegin
+    @DeclarationsAndStatements
+    .sEnd;
+    
+% MODIFICATION MADE
+% DeclarationsAndStatements is the main rule for handing most code
+% Handles Quby sytanx for if, unless, case, do, etc.
+% Removed need for semi-colons (they are just consumed)
+    
+DeclarationsAndStatements:
+% val, var, type declarations
+    {[
+        | 'val':
+            .sConst
+            @ConstantDefinitions
+        | 'type':
+            .sType
+            @ValueOrQuby
+        | 'var':
+            .sVar
+            @VariableDeclarations        
+% MODIFICATION MADE
+% Added case for def       
+        | 'def':
+            .sProcedure
+            % procedure name
+            [
+                | '*':
+                    .sPublic pIdentifier .sIdentifier
+                | *:
+                    pIdentifier  .sIdentifier
+            ]
+            @ProcedureHeading
+            @Block
+            'end'
+% MODIFICATION MADE
+% Added case for module
+        | 'module':
+            .sModule
+            pIdentifier .sIdentifier
+            @Block
+            'end'
+        | pIdentifier:
+            @AssignmentOrCallStmt
+        | 'if':
+            @IfStmt
+            'end' 
+        | 'unless':
+            @UnlessStmt
+            'end'
+        | 'while':
+            @WhileStmt
+        | 'case': 
+            @CaseStmt
+        | 'do':
+            @DoStmt
+        | ';':
+        | pPercent:
+        | *:
+            >
+    ]};
+
+% MODIFICATION MADE
+% Changed constantDefinitions to accomodate Quby syntax
+
+ConstantDefinitions :
+        % Accept one or more named constant definitions
+        pIdentifier  .sIdentifier
+        '=' @ConstantValue 
+        {[
+            | pIdentifier:
+                .sIdentifier
+                '=' @ConstantValue 
+            | *:
+                >
+        ]};
+
+ConstantValue :
+        [
+            | pInteger:
+                .sInteger
+            | pIdentifier:
+                .sIdentifier
+            | '-':
+                @UnsignedIntegerConstant
+                .sNegate
+            | '+':
+                @UnsignedIntegerConstant
+            | pStringLiteral:
+                .sStringLiteral
+        ];
+
+UnsignedIntegerConstant :
+        [
+            | pIdentifier:
+                .sIdentifier
+            | pInteger:
+                .sInteger
+        ];
+
+
+% MODIFICATION MADE
+% Added ValueOrQuby to accomodate Quby clauses
+
+ValueOrQuby:
+    % accepts either a constant value or a quby clause
+    pIdentifier .sIdentifier
+    {[
+        | pIdentifier:
+            .sIdentifier
+        | 'array':
+            .sArray
+        | 'file':
+            .sFile
+        | ':':
+        | *:
+            >
+    ]};
+    
+TypeDefinitions:
+        % Accept one or more named type definitions.
+        pIdentifier  .sIdentifier
+        '='  @TypeBody  
+        {[
+            | pIdentifier:
+                .sIdentifier
+                '='  @TypeBody  
+            | *:
+                >
+        ]};
+
+TypeBody :
+        [
+            | 'array':
+                .sArray
+                '['  @SimpleType  ']'
+                'of'  @SimpleType
+            | 'file':
+                .sFile
+                'of'  @SimpleType
+            | *:
+                @SimpleType
+        ];
+
+SimpleType :
+        % A simple type is a named type (possibly predefined)
+        % or a subrange type specification
+        [
+            | pIdentifier:
+                .sIdentifier
+                [
+                    | '..':
+                        .sRange         %% this may be unnecessary
+                        @OptionallySignedIntegerConstant
+                    | *:
+                ]
+            | *:
+                @OptionallySignedIntegerConstant
+                '..'  .sRange
+                @OptionallySignedIntegerConstant
+        ];
+
+OptionallySignedIntegerConstant :
+        [
+            | '-':
+                @UnsignedIntegerConstant
+                .sNegate
+            | '+':
+                @UnsignedIntegerConstant
+            | *:
+                @UnsignedIntegerConstant
+        ];
+
+% MODIFICATION MADE
+% Changed variableDeclarations to accomodate Quby syntax and changes to block rule
+
+VariableDeclarations :
+        % Accept one or more variable declarations.
+        pIdentifier  .sIdentifier
+        {[
+            | ',':
+                pIdentifier .sVar .sIdentifier
+            | *:
+                >
+        ]}
+        ':' @ValueOrQuby;
+
+% MODIFICATION MADE
+% Modified to allow multiple inputs to functions and to allow for cases without parameters
+ProcedureHeading :
+        % Accept zero or more procedure formal parameter declarations.
+        '('
+        [
+            | ')':
+            | *:
+                {
+                    % formal parameter identifier
+                    [
+                        | 'var':
+                            pIdentifier  .sIdentifier
+                            .sVar
+                        | *:
+                            pIdentifier .sIdentifier
+                    ]
+                    ':'
+                    % type identifier
+                    pIdentifier  .sIdentifier
+                    [
+                        | ',':
+                        | *:
+                            >
+                    ]
+                }
+            ')'
+        ]
+        .sParmEnd;
+
+
+AssignmentOrCallStmt :
+        [
+            | '=':
+                .sAssignmentStmt
+                .sIdentifier    % identifier accepted in the Statement rule
+                @Expression
+                .sExpnEnd
+            | '[':
+                .sAssignmentStmt
+                .sIdentifier
+                .sSubscript
+                @Expression
+                .sExpnEnd
+                ']'  '='
+                @Expression
+                .sExpnEnd
+            | *:
+                @CallStmt
+        ];
+
+CallStmt :
+        .sCallStmt
+        .sIdentifier    % procedure identifier accepted in the Statement rule
+        % accept zero or more actual parameters
+        [
+            | '(':
+                {
+                    @Expression
+                    .sExpnEnd
+                    % allow a field width specification to occur in calls
+                    % to the standard procedures write and writeln
+                    [
+                        | ':':
+                            .sFieldWidth
+                            @Expression
+                            .sExpnEnd
+                        | *:
+                    ]
+                    [
+                        | ',':
+                        | *:
+                            >
+                    ]
+                }
+                ')'
+            | *:        % no actual parameters
+        ]
+        .sParmEnd;
+
+% MODIFICATION MADE
+% Added call to new @Block rule to handle all declarations and statements that could be in an if statement
+% Added a check for new elsif syntax and emits a .sElse token (opted not to include a .sElsif token)
+IfStmt :
+        .sIfStmt
+        @Expression
+        .sExpnEnd
+        'then'  .sThen 
+        @Block
+        [
+            | 'else':
+                .sElse 
+                @Block
+            | 'elsif': 
+                .sElse .sBegin
+                @IfStmt
+                .sEnd
+            | *:
+        ];
+
+% MODIFICATION MADE
+% Unless statement handling added, almost the same as an IfStmt except it emits an .sNot after @Expression (and doesn't include elsif)
+UnlessStmt:
+        .sIfStmt
+        @Expression
+        .sNot
+        .sExpnEnd
+        'then' .sThen 
+        @Block
+        [
+            | 'else':
+                .sElse 
+                @Block
+            | *:
+        ];
+
+% MODIFICATION MADE
+% Modified to handle logic for new case statments
+% No more need to consume 'of' token
+% Added a case for when
+% Added support for default else case in Quby syntax
+CaseStmt :
+        .sCaseStmt
+        @Expression
+        .sExpnEnd
+        {[
+            | 'when' :
+                @CaseAlternative
+            | *:
+                >
+        ]}
+        [
+            | 'else':
+                .sElse 
+                @Block
+            | *:
+        ]
+        'end'
+        .sCaseEnd;
+
+CaseAlternative :
+        % A case alternative is a statement labelled by
+        % one or more optionally signed integer constants
+
+        {
+            @OptionallySignedIntegerConstant
+            [
+                | ',':
+                | *:
+                    >
+            ]
+        }
+        'then'
+        @Block;
+
+% MODIFICATION MADE
+% Calls @Block rule instead if old statement rule
+WhileStmt :
+        .sWhileStmt
+        @Expression
+        .sExpnEnd
+        'do'
+        @Block;
+
+% MODIFICATION MADE
+% Replaced repeat statement with do, following Quby specs
+% Calls block to handle declares and stmts
+% handles break if statements which contain and expression and another @Block rule
+DoStmt :   
+        .sDo
+        @Block 
+        [
+            | 'break':
+                'if'
+                .sBreakif 
+                @Expression 
+                .sExpnEnd
+                @Block
+            | *:
+        ]
+        'end';
+
+Expression :
+        @SimpleExpression
+        [
+            | '==':
+                @SimpleExpression  .sEq
+            | '!=':
+                @SimpleExpression  .sNE
+            | '<':
+                @SimpleExpression  .sLT
+            | '<=':
+                @SimpleExpression  .sLE
+            | '>':
+                @SimpleExpression  .sGT
+            | '>=':
+                @SimpleExpression  .sGE
+            | *:
+        ];
+
+SimpleExpression :
+        [
+            | '+':
+                @Term
+            | '-':
+                @Term  .sNegate
+            | *:
+                @Term
+        ]
+        {[
+            | '+':
+                @Term  .sAdd
+            | '-':
+                @Term  .sSubtract
+            | 'or':
+                .sInfixOr  @Term  .sOr
+            | *:
+                >
+        ]};
+
+Term :
+        @Factor
+        {[
+            | '*':
+                @Factor  .sMultiply
+            | 'div':
+                @Factor  .sDivide
+            | 'mod':
+                @Factor  .sModulus
+            | 'and':
+                .sInfixAnd  @Factor  .sAnd
+            | '?':
+                @Factor .sIndex
+            | *:
+                >
+        ]};
+
+% MODIFICATION MADE
+% New factor rule to be called before old factor rule (now SubFactor)
+% Allows for new $ operator to take precendence over SubFactor operators
+Factor :
+        @SubFactor 
+        {[
+            | '$':
+                @SubFactor '..' @SubFactor .sSubstring
+            | *: 
+                >
+        ]};
+
+% MODIFICATION MADE
+% Added ? and # operators to give them the same precedence as operators like !, (, etc.
+SubFactor :
+        [
+            | pIdentifier:
+                .sIdentifier
+                @IdentifierExtension
+            | pInteger:
+                .sInteger
+            | '(':
+                @Expression  ')'
+            | '!':
+                @SubFactor
+                .sNot
+            | '#':
+                @SubFactor 
+                .sLength
+            | pStringLiteral:
+                .sStringLiteral
+            | 'file':
+                .sFile '(' @Expression ')'
+                .sExpnEnd
+        ];
+
+IdentifierExtension :
+        % Handle subscripts and function actual parameter lists
+        [
+            | '[':
+                .sSubscript
+                @Expression  ']'
+                .sExpnEnd
+            | '(':
+                .sParmBegin
+                @Expression  ')'
+                .sExpnEnd
+                .sParmEnd
+            | *:
+        ];
+
+end

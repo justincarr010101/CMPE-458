@@ -1,0 +1,29 @@
+using output
+
+% Module Test Suite
+
+% empty module
+module m
+    
+end
+
+% module with private procedure
+module m
+    def p () 
+
+    end
+end
+
+% module with public procedure
+module m 
+    def * p ()
+    
+    end
+end
+
+% module with public procedure that has parameters
+module m 
+    def * p (var x : integer)
+
+    end
+end

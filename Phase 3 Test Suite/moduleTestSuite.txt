@@ -1,0 +1,14 @@
+Purpose of test case:
+To show the analyzer properly handles modules. Specifically testing for functionality of procedures within modules.
+
+Expected Output:
+- no new tcodes necessary for modules
+- should ignore the module intialization and initialize the procedure defined within. 
+- Additonal output file included to show that the module symbol was created and put on the symbol stack when the module is initialized.
+- Procedure symbols should be outputted after each module symbol, (syProcedure or syPublicProcedure)
+
+
+Output:
+- Each module is properly handled by the analyzer. The procedures defined within are recognized and intitialized correctly
+- Four syModule symbols are created, and three procedure symbols are also created.
+- The case where there is a public procedure with a parameter is handled correctly - module symbol created, syPulicProcedure symbol created and syVarParameter symbol created and placed into symbol table. 

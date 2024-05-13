@@ -1,0 +1,21 @@
+Purpose of test case:
+To show the analyzer properly handles case statements
+
+Expected Output:
+- the correct order of tcodes to be outputted should be as follows:
+  .tCaseBegin
+  .... (tCode for expression)
+  .tCaseSelect
+  .... (body of choice)
+  .tCaseMerge
+  .... (body of choice)
+  .tCaseMerge
+  .... (body of choice)
+  .tCaseMerge
+  .... (case branch table)
+ .tCaseElse
+ .tCaseMerge
+ 
+
+Output:
+- As seen from .eOutput, the proper tCodes are outputted in the correct order
