@@ -1,4 +1,4 @@
-# cmpe458
+# Compiler implementation
 
 Course Project
 - Understand and modify a small but real programming
